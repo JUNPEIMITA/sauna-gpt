@@ -125,5 +125,6 @@ app.post('/search', async (req, res) => {
 // ✅ Cloud Runでは必ずPORT指定で起動！
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-  console.log(`Sauna GPT app running on port ${PORT}`);
+  console.log(`Server is listening on port ${PORT}`);
 });
+
