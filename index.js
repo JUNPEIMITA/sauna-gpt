@@ -7,38 +7,35 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const SHEET_ID = '11jM516wdLRtgNqs5-GL1ywlpINeopBTqILWrHDW9dhw'; // サウナDBスプレッドシートID
+const SHEET_ID = '11jM516wdLRtgNqs5-GL1ywlpINeopBTqILWrHDW9dhw';
 const SAUNA_SHEET = 'サウナ一覧';
 const MANAGE_SHEET = '利用管理';
 
-// Vertex AIセットアップ（Gemini用）
 const vertexAi = new VertexAI({
   project: process.env.GCLOUD_PROJECT,
   location: 'us-central1',
 });
+
 const model = vertexAi.preview.getGenerativeModel({
   model: 'gemini-1.0-pro',
   generationConfig: {
     temperature: 0.9,
-    maxOutputTokens: 1024
+    maxOutputTokens: 1024,
   },
   safetySettings: [],
 });
 
-// Google Sheets認証
 const sheets = google.sheets('v4');
 const auth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON),
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
-// サウナ検索API
 app.post('/search', async (req, res) => {
   try {
     const { userId, area, station, facilityType } = req.body;
     const client = await auth.getClient();
 
-    // 利用管理DBチェック・カウントアップ
     const manageResp = await sheets.spreadsheets.values.get({
       auth: client,
       spreadsheetId: SHEET_ID,
@@ -53,7 +50,7 @@ app.post('/search', async (req, res) => {
         spreadsheetId: SHEET_ID,
         range: MANAGE_SHEET,
         valueInputOption: 'RAW',
-        resource: { values: [[userId, 1, today, '無料']] }
+        resource: { values: [[userId, 1, today, '無料']] },
       });
       count = 1;
     } else {
@@ -66,14 +63,14 @@ app.post('/search', async (req, res) => {
           spreadsheetId: SHEET_ID,
           range: `${MANAGE_SHEET}!B${idx + 1}`,
           valueInputOption: 'RAW',
-          resource: { values: [[1]] }
+          resource: { values: [[1]] },
         });
         await sheets.spreadsheets.values.update({
           auth: client,
           spreadsheetId: SHEET_ID,
           range: `${MANAGE_SHEET}!C${idx + 1}`,
           valueInputOption: 'RAW',
-          resource: { values: [[today]] }
+          resource: { values: [[today]] },
         });
         count = 1;
       } else {
@@ -86,17 +83,16 @@ app.post('/search', async (req, res) => {
           spreadsheetId: SHEET_ID,
           range: `${MANAGE_SHEET}!B${idx + 1}`,
           valueInputOption: 'RAW',
-          resource: { values: [[count + 1]] }
+          resource: { values: [[count + 1]] },
         });
         count++;
       }
     }
 
-    // サウナ一覧取得
     const saunaResp = await sheets.spreadsheets.values.get({
       auth: client,
       spreadsheetId: SHEET_ID,
-      range: `${SAUNA_SHEET}!A:N`
+      range: `${SAUNA_SHEET}!A:N`,
     });
     let saunaRows = saunaResp.data.values;
     let candidates = saunaRows.slice(1).filter(row =>
@@ -108,22 +104,22 @@ app.post('/search', async (req, res) => {
       return res.json({ result: "条件に該当するサウナ施設が見つかりませんでした。" });
     }
 
-    // Geminiプロンプト
     let saunaInfoText = candidates.map(row =>
       `施設名: ${row[1]}\nエリア: ${row[2]}\n路線: ${row[3]}\n最寄駅: ${row[4]}\n施設タイプ: ${row[5]}\n男女利用: ${row[6]}\nHP: ${row[7]}\nInstagram: ${row[8]}\n地図: ${row[9]}`
     ).join('\n---\n');
+
     let prompt = `下記リストから条件に合うサウナ施設があれば抜き出し、<施設名>・<HP>・<Instagram>・<GoogleMap>を出力してください。もしリストに合うサウナ情報がなければWEBを検索し、施設名など、同様の回答をしてください。\n\n【サウナ情報リスト】\n${saunaInfoText}\n\n【ユーザー条件】エリア:${area} 駅:${station} タイプ:${facilityType}`;
 
-    const result = await model.generateContent({
+    const response = await model.generateContent({
       contents: [
         {
           role: 'user',
-          parts: [{ text: prompt }]
-        }
-      ]
+          parts: [{ text: prompt }],
+        },
+      ],
     });
 
-    const aiAnswer = result.responses?.[0]?.candidates?.[0]?.content?.parts?.[0]?.text || "該当施設なし";
+    const aiAnswer = response[0]?.candidates?.[0]?.content?.parts?.[0]?.text || "該当施設なし";
     res.json({ result: aiAnswer });
   } catch (e) {
     console.error('💥 エラー詳細:', e);
@@ -131,7 +127,6 @@ app.post('/search', async (req, res) => {
   }
 });
 
-// Cloud Run用 ポートで待機
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
