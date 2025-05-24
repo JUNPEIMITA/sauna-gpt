@@ -14,9 +14,16 @@ const MANAGE_SHEET = '利用管理';
 // Vertex AIセットアップ（Gemini用）
 const vertexAi = new VertexAI({
   project: process.env.GCLOUD_PROJECT,
-  location: 'us-central1', // 東京未対応なら us-central1 でOK
+  location: 'us-central1',
 });
-const model = 'gemini-1.0-pro';
+const model = vertexAi.preview.getGenerativeModel({
+  model: 'gemini-1.0-pro',
+  generationConfig: {
+    temperature: 0.9,
+    maxOutputTokens: 1024
+  },
+  safetySettings: [],
+});
 
 // Google Sheets認証
 const sheets = google.sheets('v4');
@@ -107,22 +114,24 @@ app.post('/search', async (req, res) => {
     ).join('\n---\n');
     let prompt = `下記リストから条件に合うサウナ施設があれば抜き出し、<施設名>・<HP>・<Instagram>・<GoogleMap>を出力してください。もしリストに合うサウナ情報がなければWEBを検索し、施設名など、同様の回答をしてください。\n\n【サウナ情報リスト】\n${saunaInfoText}\n\n【ユーザー条件】エリア:${area} 駅:${station} タイプ:${facilityType}`;
 
-    // Geminiへリクエスト
-    const [result] = await vertexAi.getGenerativeModel({ model }).generateContent({
+    const result = await model.generateContent({
       contents: [
-        { role: "user", parts: [{ text: prompt }] }
+        {
+          role: 'user',
+          parts: [{ text: prompt }]
+        }
       ]
     });
-    const aiAnswer = result.candidates?.[0]?.content?.parts?.[0]?.text || "該当施設なし";
 
+    const aiAnswer = result.responses?.[0]?.candidates?.[0]?.content?.parts?.[0]?.text || "該当施設なし";
     res.json({ result: aiAnswer });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ result: "エラーが発生しました" });
+    console.error('💥 エラー詳細:', e);
+    res.status(500).json({ result: "エラーが発生しました", error: e.message || e.toString() });
   }
 });
 
-// ✅ Cloud Runでは必ずPORT指定で起動！
+// Cloud Run用 ポートで待機
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
