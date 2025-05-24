@@ -92,8 +92,8 @@ app.post('/search', async (req, res) => {
     }
 
     const saunaInfoText = candidates.map(row =>
-      `施設名: ${row[1]}\\nエリア: ${row[2]}\\n路線: ${row[3]}\\n最寄駅: ${row[4]}\\n施設タイプ: ${row[5]}\\n男女利用: ${row[6]}\\nHP: ${row[7]}\\nInstagram: ${row[8]}\\n地図: ${row[9]}`
-    ).join('\\n---\\n');
+  `施設名: ${row[1]}\nエリア: ${row[2]}\n路線: ${row[3]}\n最寄駅: ${row[4]}\n施設タイプ: ${row[5]}\n男女利用: ${row[6]}\nHP: ${row[7]}\nInstagram: ${row[8]}\n地図: ${row[9]}`).join('\n---\n');
+
 
     const prompt = `下記リストから条件に合うサウナ施設を厳密に選び、施設名・HP・Instagram・GoogleMapを出力してください。\\n\\n【サウナ情報リスト】\\n${saunaInfoText}\\n\\n【ユーザー条件】エリア:${area} 駅:${station} タイプ:${facilityType}`;
 
