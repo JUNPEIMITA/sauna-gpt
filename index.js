@@ -1,5 +1,5 @@
 const { google } = require('googleapis');
-const { VertexAI } = require('@google-cloud/vertexai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const express = require('express');
 const cors = require('cors');
 
@@ -11,19 +11,8 @@ const SHEET_ID = '11jM516wdLRtgNqs5-GL1ywlpINeopBTqILWrHDW9dhw';
 const SAUNA_SHEET = 'サウナ一覧';
 const MANAGE_SHEET = '利用管理';
 
-const vertexAi = new VertexAI({
-  project: process.env.GCLOUD_PROJECT,
-  location: 'us-central1',
-});
-
-const model = vertexAi.preview.getGenerativeModel({
-  model: 'gemini-1.0-pro',
-  generationConfig: {
-    temperature: 0.9,
-    maxOutputTokens: 1024,
-  },
-  safetySettings: [],
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
 const sheets = google.sheets('v4');
 const auth = new google.auth.GoogleAuth({
@@ -110,16 +99,9 @@ app.post('/search', async (req, res) => {
 
     let prompt = `下記リストから条件に合うサウナ施設があれば抜き出し、<施設名>・<HP>・<Instagram>・<GoogleMap>を出力してください。もしリストに合うサウナ情報がなければWEBを検索し、施設名など、同様の回答をしてください。\n\n【サウナ情報リスト】\n${saunaInfoText}\n\n【ユーザー条件】エリア:${area} 駅:${station} タイプ:${facilityType}`;
 
-    const response = await model.generateContent({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }],
-        },
-      ],
-    });
+    const result = await model.generateContent(prompt);
+    const aiAnswer = result.response.text();
 
-    const aiAnswer = response[0]?.candidates?.[0]?.content?.parts?.[0]?.text || "該当施設なし";
     res.json({ result: aiAnswer });
   } catch (e) {
     console.error('💥 エラー詳細:', e);
