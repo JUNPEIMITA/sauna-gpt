@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const SHEET_ID = 'スプレッドシートIDをここに';
+const SHEET_ID = '11jM516wdLRtgNqs5-GL1ywlpINeopBTqILWrHDW9dhw';
 const SAUNA_SHEET = 'サウナ一覧';
 const MANAGE_SHEET = '利用管理';
 
