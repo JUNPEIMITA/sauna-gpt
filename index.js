@@ -1,7 +1,7 @@
 const { google } = require('googleapis');
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch'); // OpenAI API呼び出し用
+const fetch = require('node-fetch');
 
 const app = express();
 app.use(cors());
@@ -17,12 +17,22 @@ const auth = new google.auth.GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
+// JSTの日付＋時刻で返す関数
+function getJstDatetimeString() {
+  const dt = new Date();
+  dt.setHours(dt.getHours() + 9);
+  return dt.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 app.post('/search', async (req, res) => {
   try {
     const { userId, area, kibun } = req.body;
     const client = await auth.getClient();
 
-    // 利用管理シートのアクセス・回数制限処理はそのまま
+    // JST現在時刻（YYYY-MM-DD HH:MM:SS）
+    let now = getJstDatetimeString();
+
+    // 利用管理シートのアクセス・回数制限処理
     const manageResp = await sheets.spreadsheets.values.get({
       auth: client,
       spreadsheetId: SHEET_ID,
@@ -30,21 +40,22 @@ app.post('/search', async (req, res) => {
     });
     let rows = manageResp.data.values || [];
     let idx = rows.findIndex(row => row[0] === userId);
-    let count = 0, status = '無料', lastDate = '', today = new Date().toISOString().slice(0, 10);
+    let count = 0, status = '無料', lastDate = '', lastDateDay = '', nowDay = now.slice(0, 10);
     if (idx < 0) {
       await sheets.spreadsheets.values.append({
         auth: client,
         spreadsheetId: SHEET_ID,
         range: MANAGE_SHEET,
         valueInputOption: 'RAW',
-        resource: { values: [[userId, 1, today, '無料']] }
+        resource: { values: [[userId, 1, now, '無料']] }
       });
       count = 1;
     } else {
       count = parseInt(rows[idx][1], 10);
       lastDate = rows[idx][2];
       status = rows[idx][3] || "無料";
-      if (lastDate !== today) {
+      lastDateDay = lastDate ? lastDate.slice(0, 10) : '';
+      if (lastDateDay !== nowDay) {
         await sheets.spreadsheets.values.update({
           auth: client,
           spreadsheetId: SHEET_ID,
@@ -57,7 +68,7 @@ app.post('/search', async (req, res) => {
           spreadsheetId: SHEET_ID,
           range: `${MANAGE_SHEET}!C${idx + 1}`,
           valueInputOption: 'RAW',
-          resource: { values: [[today]] }
+          resource: { values: [[now]] }
         });
         count = 1;
       } else {
@@ -72,14 +83,18 @@ app.post('/search', async (req, res) => {
           valueInputOption: 'RAW',
           resource: { values: [[count + 1]] }
         });
+        await sheets.spreadsheets.values.update({
+          auth: client,
+          spreadsheetId: SHEET_ID,
+          range: `${MANAGE_SHEET}!C${idx + 1}`,
+          valueInputOption: 'RAW',
+          resource: { values: [[now]] }
+        });
         count++;
       }
     }
 
-app.post('/search', async (req, res) => {
-  try {
-    const { userId, area, kibun } = req.body;
-
+    // ChatGPTへの問い合わせ
     const prompt = `【${area}】で【${kibun}】に合うサウナを名前と駅を正確な情報だけ。不明な場合は「該当なし」
 🧖‍♂️◯◯
 🚃◯◯
@@ -93,6 +108,7 @@ app.post('/search', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'gpt-3.5-turbo',
+        max_tokens: 32,
         messages: [
           { role: 'user', content: prompt }
         ]
@@ -105,4 +121,10 @@ app.post('/search', async (req, res) => {
     console.error('💥 エラー:', e);
     res.status(500).json({ result: 'エラーが発生しました', error: e.message || e.toString() });
   }
+});
+
+// Cloud Runで必須のPORTリッスン
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`Server is listening on port ${PORT}`);
 });
