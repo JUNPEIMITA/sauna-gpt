@@ -95,10 +95,12 @@ app.post('/search', async (req, res) => {
     }
 
     // ChatGPTへの問い合わせ
-    const prompt = `【${area}】で【${kibun}】を正確な情報だけ下記形式で。不明な場合は「該当なし」
-🧖‍♂️施設名
-🚃最寄駅
-※地図URL`;
+    const prompt = `【${area}】で 実在する【${kibun}】をサウナイキタイ掲載店を検索。実在しない名はNG。不明なら該当なし。
+例:
+🧖‍♂️かるまる池袋
+🚃池袋駅 徒歩2分
+※https://maps.google.com/?q=かるまる
+`;
 
     const openaiResp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
