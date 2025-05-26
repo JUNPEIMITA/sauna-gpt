@@ -1,7 +1,7 @@
 const { google } = require('googleapis');
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch'); // ← 重要：OpenAI API呼び出しに使用
+const fetch = require('node-fetch'); // OpenAI API呼び出し用
 
 const app = express();
 app.use(cors());
@@ -19,9 +19,10 @@ const auth = new google.auth.GoogleAuth({
 
 app.post('/search', async (req, res) => {
   try {
-    const { userId, area, station, facilityType } = req.body;
+    const { userId, area, kibun } = req.body;
     const client = await auth.getClient();
 
+    // 利用管理シートのアクセス・回数制限処理はそのまま
     const manageResp = await sheets.spreadsheets.values.get({
       auth: client,
       spreadsheetId: SHEET_ID,
@@ -60,9 +61,9 @@ app.post('/search', async (req, res) => {
         });
         count = 1;
       } else {
-        let limit = status === '有料' ? 10 : 3;
+        let limit = status === '有料' ? 20 : 3;
         if (count >= limit) {
-          return res.json({ result: `本日の検索上限に達しています。有料プラン申込をご検討ください（詳細は別途お問い合わせください）` });
+          return res.json({ result: `本日の検索上限に達しています。無料プランの方は有料プラン申込をご検討ください（詳細は別途お問い合わせください）` });
         }
         await sheets.spreadsheets.values.update({
           auth: client,
@@ -75,27 +76,23 @@ app.post('/search', async (req, res) => {
       }
     }
 
-    const saunaResp = await sheets.spreadsheets.values.get({
-      auth: client,
-      spreadsheetId: SHEET_ID,
-      range: `${SAUNA_SHEET}!A:N`
-    });
-    const saunaRows = saunaResp.data.values;
-    const candidates = saunaRows.slice(1).filter(row =>
-      (!area || row[2].includes(area)) &&
-      (!station || row[4].includes(station)) &&
-      (!facilityType || row[5].includes(facilityType))
-    );
+app.post('/search', async (req, res) => {
+  try {
+    const { userId, area, kibun } = req.body;
+    // ...（利用管理や回数制限ロジックはこのまま）...
 
-    if (candidates.length === 0) {
-      return res.json({ result: "条件に該当するサウナ施設が見つかりませんでした。" });
-    }
+    // ---- サウナ候補リストsaunaInfoTextは一切使いません ----
 
-    const saunaInfoText = candidates.map(row =>
-  `施設名: ${row[1]}\nエリア: ${row[2]}\n路線: ${row[3]}\n最寄駅: ${row[4]}\n施設タイプ: ${row[5]}\n男女利用: ${row[6]}\nHP: ${row[7]}\nInstagram: ${row[8]}\n地図: ${row[9]}`).join('\n---\n');
+    const prompt = `【${area}】で【${kibun}】に合うサウナ1つ日本語で。絶対に嘘をつかずに下記形式のみ。
 
+🧖‍♂️◯◯（施設名）
 
-    const prompt = `下記リストから条件に合うサウナ施設を厳密に選び、施設名・HP・Instagram・GoogleMapを出力してください。\\n\\n【サウナ情報リスト】\\n${saunaInfoText}\\n\\n【ユーザー条件】エリア:${area} 駅:${station} タイプ:${facilityType}`;
+🚃最寄駅
+◯◯
+※地図◯◯
+
+💡特徴
+◯◯(80字)`;
 
     const openaiResp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -117,9 +114,4 @@ app.post('/search', async (req, res) => {
     console.error('💥 エラー:', e);
     res.status(500).json({ result: 'エラーが発生しました', error: e.message || e.toString() });
   }
-});
-
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`Server is listening on port ${PORT}`);
 });
