@@ -83,16 +83,11 @@ app.post('/search', async (req, res) => {
 
     // ---- サウナ候補リストsaunaInfoTextは一切使いません ----
 
-    const prompt = `【${area}】で【${kibun}】に合うサウナ1つ日本語で。絶対に嘘をつかずに下記形式のみ。
+    const prompt = `【${area}】で【${kibun}】に合うサウナを名前と駅を正確な情報だけ。不明な場合は「該当なし」
 
-🧖‍♂️◯◯（施設名）
-
-🚃最寄駅
-◯◯
-※地図◯◯
-
-💡特徴
-◯◯(80字)`;
+🧖‍♂️◯◯
+🚃◯◯
+※地図◯◯`;
 
     const openaiResp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
