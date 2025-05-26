@@ -95,7 +95,7 @@ app.post('/search', async (req, res) => {
     }
 
     // ChatGPTへの問い合わせ
-    const prompt = `【${area}】で 実在する【${kibun}】をサウナイキタイ掲載店を検索。実在しない名はNG。不明なら該当なし。
+    const prompt = `【${area}】で 実在する【${kibun}】をサウナイキタイで検索。WEB検索して実在有無を再度確かめて。嘘禁止。不明なら該当なし。
 例:
 🧖‍♂️かるまる池袋
 🚃池袋駅 徒歩2分
