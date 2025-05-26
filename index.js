@@ -79,12 +79,8 @@ app.post('/search', async (req, res) => {
 app.post('/search', async (req, res) => {
   try {
     const { userId, area, kibun } = req.body;
-    // ...（利用管理や回数制限ロジックはこのまま）...
-
-    // ---- サウナ候補リストsaunaInfoTextは一切使いません ----
 
     const prompt = `【${area}】で【${kibun}】に合うサウナを名前と駅を正確な情報だけ。不明な場合は「該当なし」
-
 🧖‍♂️◯◯
 🚃◯◯
 ※地図◯◯`;
