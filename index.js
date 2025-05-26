@@ -72,7 +72,7 @@ app.post('/search', async (req, res) => {
         });
         count = 1;
       } else {
-        let limit = status === '有料' ? 20 : 3;
+        let limit = status === '有料' ? 30 : 3;
         if (count >= limit) {
           return res.json({ result: `本日の検索上限に達しています。無料プランの方は有料プラン申込をご検討ください（詳細は別途お問い合わせください）` });
         }
