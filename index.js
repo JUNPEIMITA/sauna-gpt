@@ -95,10 +95,10 @@ app.post('/search', async (req, res) => {
     }
 
     // ChatGPTへの問い合わせ
-    const prompt = `【${area}】で【${kibun}】に合うサウナを名前と駅を正確な情報だけ。不明な場合は「該当なし」
-🧖‍♂️◯◯
-🚃◯◯
-※地図◯◯`;
+    const prompt = `【${area}】で【${kibun}】を正確な情報だけ下記形式で。不明な場合は「該当なし」
+🧖‍♂️施設名
+🚃最寄駅
+※地図URL`;
 
     const openaiResp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
